@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import type {
   AppLanguage,
+  HikvisionSampleRate,
   OutputFormat,
   ThemeMode,
   TtsSettings,
@@ -33,6 +34,9 @@ export const useSettingsStore = defineStore("settings", {
     autoplay: true,
     language: "zh-CN",
     themeMode: "system",
+    hikvisionMode: false,
+    hikvisionSampleRate: 8000,
+    hikvisionNormalize: true,
   }),
 
   actions: {
@@ -75,6 +79,17 @@ export const useSettingsStore = defineStore("settings", {
     },
     updateThemeMode(themeMode: ThemeMode) {
       this.$patch({ themeMode });
+    },
+    updateHikvisionMode(enabled: boolean) {
+      this.$patch({ hikvisionMode: enabled });
+    },
+    updateHikvisionSampleRate(rate: number) {
+      if (rate === 8000 || rate === 16000) {
+        this.$patch({ hikvisionSampleRate: rate as HikvisionSampleRate });
+      }
+    },
+    updateHikvisionNormalize(normalize: boolean) {
+      this.$patch({ hikvisionNormalize: normalize });
     },
   },
 

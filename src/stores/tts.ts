@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
-import type { TtsParams } from "../types";
+import type { HikvisionStatus, TtsParams } from "../types";
+import { convertAudioBytesToHikvision } from "../utils/hikvisionConverter";
 import { useVoicesStore } from "./voices";
 import { useSettingsStore } from "./settings";
 
@@ -18,7 +19,20 @@ interface TtsState {
   pitch: number;
   volume: number;
   requestVersion: number;
+  hikvisionStatus: HikvisionStatus | null;
+  hikvisionBytes: Uint8Array | null;
+  hikvisionSizeKB: number | null;
+  hikvisionWarning: string | null;
+  hikvisionError: string | null;
 }
+
+const HIKVISION_IDLE_STATE = {
+  hikvisionStatus: null,
+  hikvisionBytes: null,
+  hikvisionSizeKB: null,
+  hikvisionWarning: null,
+  hikvisionError: null,
+};
 
 function toSignedString(value: number, suffix: string): string {
   return `${value >= 0 ? "+" : ""}${value}${suffix}`;
@@ -47,6 +61,7 @@ export const useTtsStore = defineStore("tts", {
     pitch: 0,
     volume: 0,
     requestVersion: 0,
+    ...HIKVISION_IDLE_STATE,
   }),
 
   getters: {
@@ -101,6 +116,11 @@ export const useTtsStore = defineStore("tts", {
         audioUrl: null,
         audioBytes: null,
         requestVersion,
+        hikvisionStatus: settingsStore.hikvisionMode ? "pending" : null,
+        hikvisionBytes: null,
+        hikvisionSizeKB: null,
+        hikvisionWarning: null,
+        hikvisionError: null,
       });
 
       try {
@@ -119,6 +139,10 @@ export const useTtsStore = defineStore("tts", {
           progress: 100,
           error: null,
         });
+
+        if (settingsStore.hikvisionMode) {
+          await this.convertToHikvisionFormat();
+        }
       } catch (error) {
         if (this.requestVersion !== requestVersion) {
           return;
@@ -137,6 +161,57 @@ export const useTtsStore = defineStore("tts", {
         this.$patch({
           converting: false,
           currentTaskId: null,
+        });
+      }
+    },
+
+    /**
+     * Converts the current generated audio into the Hikvision WAV format.
+     * Runs after a successful `convert()` when hikvisionMode is enabled; a
+     * failure here never touches the original audio.
+     */
+    async convertToHikvisionFormat() {
+      const settingsStore = useSettingsStore();
+      if (!settingsStore.hikvisionMode || !this.audioBytes) {
+        return;
+      }
+
+      const requestVersion = this.requestVersion;
+      this.$patch({
+        hikvisionStatus: "converting",
+        hikvisionBytes: null,
+        hikvisionSizeKB: null,
+        hikvisionWarning: null,
+        hikvisionError: null,
+      });
+
+      try {
+        const result = await convertAudioBytesToHikvision(this.audioBytes, {
+          sampleRate: settingsStore.hikvisionSampleRate,
+          normalize: settingsStore.hikvisionNormalize,
+        });
+        if (this.requestVersion !== requestVersion) {
+          return;
+        }
+
+        this.$patch({
+          hikvisionStatus: result.warning ? "oversize" : "success",
+          hikvisionBytes: result.bytes,
+          hikvisionSizeKB: result.sizeKB,
+          hikvisionWarning: result.warning,
+          hikvisionError: null,
+        });
+      } catch (error) {
+        if (this.requestVersion !== requestVersion) {
+          return;
+        }
+
+        this.$patch({
+          hikvisionStatus: "failed",
+          hikvisionBytes: null,
+          hikvisionSizeKB: null,
+          hikvisionWarning: null,
+          hikvisionError: toErrorMessage(error),
         });
       }
     },
@@ -164,6 +239,7 @@ export const useTtsStore = defineStore("tts", {
         progress: 0,
         currentTaskId: null,
         requestVersion: this.requestVersion + 1,
+        ...HIKVISION_IDLE_STATE,
       });
     },
   },

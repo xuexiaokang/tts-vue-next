@@ -108,4 +108,51 @@ describe("useSettingsStore", () => {
 
     expect(store.autoplay).toBe(false);
   });
+
+  test("uses disabled hikvision output defaults", async () => {
+    const { useSettingsStore } = await import("./settings");
+    const store = useSettingsStore();
+
+    expect(store.hikvisionMode).toBe(false);
+    expect(store.hikvisionSampleRate).toBe(8000);
+    expect(store.hikvisionNormalize).toBe(true);
+  });
+
+  test("updates hikvision options and rejects invalid sample rates", async () => {
+    const { useSettingsStore } = await import("./settings");
+    const store = useSettingsStore();
+
+    store.updateHikvisionMode(true);
+    store.updateHikvisionSampleRate(16000);
+    store.updateHikvisionNormalize(false);
+
+    expect(store.hikvisionMode).toBe(true);
+    expect(store.hikvisionSampleRate).toBe(16000);
+    expect(store.hikvisionNormalize).toBe(false);
+
+    store.updateHikvisionSampleRate(44100);
+    store.updateHikvisionSampleRate(Number.NaN);
+
+    expect(store.hikvisionSampleRate).toBe(16000);
+  });
+
+  test("persists hikvision settings across pinia instances", async () => {
+    const { useSettingsStore } = await import("./settings");
+    const store = useSettingsStore();
+
+    store.updateHikvisionMode(true);
+    store.updateHikvisionSampleRate(16000);
+    store.updateHikvisionNormalize(false);
+
+    const nextPinia = createPinia();
+    nextPinia.use(createPersistedState({ storage }));
+    createApp({}).use(nextPinia);
+    setActivePinia(nextPinia);
+
+    const rehydratedStore = useSettingsStore();
+
+    expect(rehydratedStore.hikvisionMode).toBe(true);
+    expect(rehydratedStore.hikvisionSampleRate).toBe(16000);
+    expect(rehydratedStore.hikvisionNormalize).toBe(false);
+  });
 });

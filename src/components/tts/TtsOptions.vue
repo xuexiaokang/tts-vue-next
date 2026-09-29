@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { useMessage } from "vuetify-message-vue3";
 import type { OutputFormat } from "../../types";
+import { checkFfmpegReady, HIKVISION_SAMPLE_RATES } from "../../utils/hikvisionConverter";
 import { useSettingsStore } from "../../stores/settings";
 import { useTtsStore } from "../../stores/tts";
 import VoiceSelector from "./VoiceSelector.vue";
@@ -11,6 +12,12 @@ const ttsStore = useTtsStore();
 const settingsStore = useSettingsStore();
 const message = useMessage();
 const { t } = useI18n();
+
+const ffmpegReady = ref(true);
+
+onMounted(async () => {
+  ffmpegReady.value = await checkFfmpegReady();
+});
 
 const formatOptions = computed(
   (): Array<{ title: string; value: OutputFormat }> => [
@@ -57,11 +64,44 @@ const outputFormat = computed({
   },
 });
 
+const hikvisionSampleRateOptions = HIKVISION_SAMPLE_RATES.map((rate) => ({
+  title: `${rate} Hz`,
+  value: rate,
+}));
+
 async function convertText() {
   await ttsStore.convert();
 
   if (ttsStore.error) {
     message.error(ttsStore.error);
+    return;
+  }
+
+  if (!settingsStore.hikvisionMode) {
+    return;
+  }
+
+  if (!ttsStore.audioBytes) {
+    message.warning(t("hikvision.noAudio"));
+    return;
+  }
+
+  if (ttsStore.hikvisionStatus === "failed") {
+    message.error(
+      t("hikvision.messages.failed", { message: ttsStore.hikvisionError ?? "" }),
+    );
+    return;
+  }
+
+  if (ttsStore.hikvisionStatus === "oversize") {
+    message.warning(ttsStore.hikvisionWarning ?? t("hikvision.messages.oversizeWarning", { sizeKB: ttsStore.hikvisionSizeKB ?? 0 }));
+    return;
+  }
+
+  if (ttsStore.hikvisionStatus === "success") {
+    message.success(
+      t("hikvision.messages.converted", { sizeKB: ttsStore.hikvisionSizeKB ?? 0 }),
+    );
   }
 }
 </script>
@@ -140,6 +180,38 @@ async function convertText() {
         :items="formatOptions"
         :label="$t('tts.options.outputFormat')"
         prepend-inner-icon="mdi-file-music-outline" />
+
+      <v-divider class="my-4" />
+
+      <div class="hikvision-section">
+        <v-switch
+          :model-value="settingsStore.hikvisionMode"
+          :disabled="!ffmpegReady"
+          color="#E2231A"
+          density="comfortable"
+          hide-details
+          :label="$t('hikvision.modeLabel')"
+          @update:model-value="
+            (value) => settingsStore.updateHikvisionMode(Boolean(value))
+          " />
+        <p v-if="!ffmpegReady" class="text-caption text-error hikvision-section__hint">
+          {{ $t("hikvision.ffmpegNotReady") }}
+        </p>
+        <v-select
+          v-if="settingsStore.hikvisionMode"
+          :model-value="settingsStore.hikvisionSampleRate"
+          :items="hikvisionSampleRateOptions"
+          :label="$t('hikvision.sampleRate')"
+          prepend-inner-icon="mdi-face-recognition"
+          hide-details
+          density="comfortable"
+          class="hikvision-section__select"
+          @update:model-value="
+            (value) =>
+              typeof value === 'number' &&
+              settingsStore.updateHikvisionSampleRate(value)
+          " />
+      </div>
     </v-card-text>
 
     <v-card-actions class="px-4 pb-4 pt-0 d-flex flex-column ga-3">
@@ -188,5 +260,20 @@ async function convertText() {
 
 .slider-group + .slider-group {
   margin-top: 5px;
+}
+
+.hikvision-section {
+  border: 1px solid rgba(226, 35, 26, 0.24);
+  border-radius: 12px;
+  padding: 4px 12px 12px;
+  background: rgba(226, 35, 26, 0.04);
+}
+
+.hikvision-section__hint {
+  margin: -6px 0 8px;
+}
+
+.hikvision-section__select {
+  padding-top: 2px;
 }
 </style>

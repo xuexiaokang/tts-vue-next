@@ -47,6 +47,7 @@ export default {
       saveGeneratedAudio: "保存生成的音频",
       saveFilterName: "音频文件",
       defaultFileName: "语音输出.{ext}",
+      defaultHikvisionFileName: "语音输出_hikvision.wav",
     },
   },
   batch: {
@@ -120,6 +121,49 @@ export default {
     about: {
       description:
         "一个由 Microsoft Edge TTS 服务驱动，并基于 Vue 3、Vuetify 和 Tauri 构建的桌面 TTS 应用。",
+    },
+  },
+  hikvision: {
+    sectionTitle: "海康人脸机格式输出",
+    description:
+      "开启后，生成的语音将自动转换为海康人脸识别终端支持的 WAV 格式。",
+    modeLabel: "海康人脸机格式",
+    enableOutput: "启用海康格式输出",
+    sampleRate: "采样率",
+    normalize: "音量归一化",
+    normalizeHint: "自动调整到 -3dB（推荐开启）",
+    ffmpegNotReady: "FFmpeg 未就绪，海康格式输出不可用",
+    noAudio: "请先生成音频",
+    saveAudio: "保存海康格式音频",
+    listColumn: "海康格式",
+    spec: {
+      container: "文件格式",
+      containerValue: "WAV",
+      codec: "编码",
+      codecValue: "PCM（线性未压缩）",
+      channels: "声道",
+      channelsValue: "单声道（Mono）",
+      sampleRate: "采样率",
+      sampleRateValue: "8000 / 16000 Hz",
+      bitDepth: "位深",
+      bitDepthValue: "16 bit",
+      amplitude: "音频幅度",
+      amplitudeValue: "≤ -3dB（自动归一化）",
+      fileSize: "文件大小",
+      fileSizeValue: "≤ 512 KB",
+    },
+    status: {
+      pending: "待转换",
+      converting: "转换中",
+      success: "成功",
+      failed: "失败",
+      oversize: "超过 512KB",
+    },
+    messages: {
+      converted: "海康格式音频已生成（{sizeKB}KB）",
+      oversizeWarning: "文件 {sizeKB}KB 超过海康 512KB 限制",
+      oversizeTooltip: "文件 {sizeKB}KB，超过海康 512KB 限制",
+      failed: "海康格式转换失败：{message}",
     },
   },
 } as const;

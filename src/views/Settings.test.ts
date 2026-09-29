@@ -130,8 +130,10 @@ describe("Settings view", () => {
     await wrapper.find(".text-field-append-stub").trigger("click");
     await flushPromises();
 
-    expect(invokeMock).toHaveBeenCalledTimes(1);
-    expect(invokeMock).toHaveBeenCalledWith("select_folder");
+    const selectFolderCalls = invokeMock.mock.calls.filter(
+      ([command]) => command === "select_folder",
+    );
+    expect(selectFolderCalls).toHaveLength(1);
   });
 
   test("renders processing controls including chunk concurrency and updates save path", async () => {

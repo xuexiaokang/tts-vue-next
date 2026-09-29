@@ -1,13 +1,35 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { useI18n } from "vue-i18n";
 import { useMessage } from "vuetify-message-vue3";
+import { checkFfmpegReady, HIKVISION_SAMPLE_RATES } from "../utils/hikvisionConverter";
 import { useSettingsStore } from "../stores/settings";
 
 const settingsStore = useSettingsStore();
 const message = useMessage();
 const { t } = useI18n();
+
+const ffmpegReady = ref(true);
+
+onMounted(async () => {
+  ffmpegReady.value = await checkFfmpegReady();
+});
+
+const hikvisionSampleRateOptions = HIKVISION_SAMPLE_RATES.map((rate) => ({
+  title: `${rate} Hz`,
+  value: rate,
+}));
+
+const hikvisionSpecRows = computed(() => [
+  { label: t("hikvision.spec.container"), value: t("hikvision.spec.containerValue") },
+  { label: t("hikvision.spec.codec"), value: t("hikvision.spec.codecValue") },
+  { label: t("hikvision.spec.channels"), value: t("hikvision.spec.channelsValue") },
+  { label: t("hikvision.spec.sampleRate"), value: t("hikvision.spec.sampleRateValue") },
+  { label: t("hikvision.spec.bitDepth"), value: t("hikvision.spec.bitDepthValue") },
+  { label: t("hikvision.spec.amplitude"), value: t("hikvision.spec.amplitudeValue") },
+  { label: t("hikvision.spec.fileSize"), value: t("hikvision.spec.fileSizeValue") },
+]);
 
 const formatOptions = computed(() => [
   { title: t("common.formats.mp3"), value: "mp3" },
@@ -137,6 +159,73 @@ async function selectSavePath() {
                   @update:model-value="settingsStore.updateChunkConcurrency" />
               </div>
             </section>
+
+            <section class="settings-group settings-group--hikvision">
+              <div class="settings-group__header">
+                <v-icon size="18" color="#E2231A">mdi-face-recognition</v-icon>
+                <span class="text-subtitle-1 font-weight-medium">{{
+                  $t("hikvision.sectionTitle")
+                }}</span>
+              </div>
+
+              <p class="text-body-2 text-medium-emphasis hikvision-description">
+                {{ $t("hikvision.description") }}
+              </p>
+
+              <v-table density="compact" class="hikvision-spec-table">
+                <tbody>
+                  <tr v-for="row in hikvisionSpecRows" :key="row.label">
+                    <td class="text-body-2 text-medium-emphasis">
+                      {{ row.label }}
+                    </td>
+                    <td class="text-body-2 font-weight-medium">{{ row.value }}</td>
+                  </tr>
+                </tbody>
+              </v-table>
+
+              <div class="settings-stack">
+                <v-switch
+                  :model-value="settingsStore.hikvisionMode"
+                  :disabled="!ffmpegReady"
+                  color="#E2231A"
+                  density="comfortable"
+                  hide-details
+                  :label="$t('hikvision.enableOutput')"
+                  @update:model-value="
+                    (value) => settingsStore.updateHikvisionMode(Boolean(value))
+                  " />
+
+                <p v-if="!ffmpegReady" class="text-caption text-error">
+                  {{ $t("hikvision.ffmpegNotReady") }}
+                </p>
+
+                <v-select
+                  :model-value="settingsStore.hikvisionSampleRate"
+                  :items="hikvisionSampleRateOptions"
+                  density="comfortable"
+                  :label="$t('hikvision.sampleRate')"
+                  @update:model-value="
+                    (value) =>
+                      typeof value === 'number' &&
+                      settingsStore.updateHikvisionSampleRate(value)
+                  " />
+
+                <div>
+                  <v-switch
+                    :model-value="settingsStore.hikvisionNormalize"
+                    color="#E2231A"
+                    density="comfortable"
+                    hide-details
+                    :label="$t('hikvision.normalize')"
+                    @update:model-value="
+                      (value) => settingsStore.updateHikvisionNormalize(Boolean(value))
+                    " />
+                  <p class="text-caption text-medium-emphasis hikvision-normalize-hint">
+                    {{ $t("hikvision.normalizeHint") }}
+                  </p>
+                </div>
+              </div>
+            </section>
           </div>
         </v-card-text>
       </v-card>
@@ -221,6 +310,34 @@ async function selectSavePath() {
   flex-shrink: 0;
 }
 
+.settings-group--hikvision {
+  width: 360px;
+  flex-shrink: 0;
+  border-color: rgba(226, 35, 26, 0.24);
+}
+
+.hikvision-description {
+  margin: -6px 0 0;
+}
+
+.hikvision-spec-table {
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.hikvision-spec-table :deep(td) {
+  padding: 4px 12px !important;
+}
+
+.hikvision-spec-table :deep(td:first-child) {
+  width: 42%;
+}
+
+.hikvision-normalize-hint {
+  margin: -10px 0 0 52px;
+}
+
 .settings-group__header {
   display: flex;
   align-items: center;
@@ -250,7 +367,8 @@ async function selectSavePath() {
     padding-right: 2px;
   }
 
-  .settings-group--secondary {
+  .settings-group--secondary,
+  .settings-group--hikvision {
     width: auto;
   }
 }

@@ -47,6 +47,7 @@ export default {
       saveGeneratedAudio: "Save generated audio",
       saveFilterName: "Audio",
       defaultFileName: "tts-output.{ext}",
+      defaultHikvisionFileName: "tts-output_hikvision.wav",
     },
   },
   batch: {
@@ -124,6 +125,49 @@ export default {
     about: {
       description:
         "A desktop TTS application powered by Microsoft Edge TTS service and built with Vue 3, Vuetify, and Tauri.",
+    },
+  },
+  hikvision: {
+    sectionTitle: "Hikvision Face Terminal Output",
+    description:
+      "When enabled, generated speech is automatically converted to the WAV format required by Hikvision face recognition terminals.",
+    modeLabel: "Hikvision face terminal format",
+    enableOutput: "Enable Hikvision output",
+    sampleRate: "Sample Rate",
+    normalize: "Volume Normalization",
+    normalizeHint: "Automatically adjust to -3dB (recommended)",
+    ffmpegNotReady: "FFmpeg is not ready; Hikvision output is unavailable",
+    noAudio: "Please generate audio first",
+    saveAudio: "Save Hikvision format audio",
+    listColumn: "Hikvision",
+    spec: {
+      container: "Container",
+      containerValue: "WAV",
+      codec: "Codec",
+      codecValue: "PCM (uncompressed)",
+      channels: "Channels",
+      channelsValue: "Mono",
+      sampleRate: "Sample Rate",
+      sampleRateValue: "8000 / 16000 Hz",
+      bitDepth: "Bit Depth",
+      bitDepthValue: "16 bit",
+      amplitude: "Amplitude",
+      amplitudeValue: "≤ -3dB (auto-normalized)",
+      fileSize: "File Size",
+      fileSizeValue: "≤ 512 KB",
+    },
+    status: {
+      pending: "Pending",
+      converting: "Converting",
+      success: "Success",
+      failed: "Failed",
+      oversize: "Over 512KB",
+    },
+    messages: {
+      converted: "Hikvision audio generated ({sizeKB}KB)",
+      oversizeWarning: "File is {sizeKB}KB, exceeding the Hikvision 512KB limit",
+      oversizeTooltip: "{sizeKB}KB exceeds the Hikvision 512KB limit",
+      failed: "Hikvision conversion failed: {message}",
     },
   },
 } as const;

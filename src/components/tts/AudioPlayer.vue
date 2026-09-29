@@ -163,6 +163,43 @@ async function saveAudio() {
   }
 }
 
+function isHikvisionConverting(): boolean {
+  return ttsStore.hikvisionStatus === "converting";
+}
+
+async function saveHikvisionAudio() {
+  if (!ttsStore.hikvisionBytes) {
+    message.warning(t("hikvision.noAudio"));
+    return;
+  }
+
+  ttsStore.$patch({ error: null });
+
+  try {
+    const { save } = await import("@tauri-apps/plugin-dialog");
+    const { invoke } = await import("@tauri-apps/api/core");
+    const filePath = await save({
+      defaultPath: t("tts.audioPlayer.defaultHikvisionFileName"),
+      filters: [
+        { name: t("tts.audioPlayer.saveFilterName"), extensions: ["wav"] },
+      ],
+    });
+
+    if (!filePath) {
+      return;
+    }
+
+    await invoke("write_binary_file", {
+      path: filePath,
+      data: Array.from(ttsStore.hikvisionBytes),
+    });
+  } catch (error) {
+    const errorMessage = toErrorMessage(error);
+    ttsStore.$patch({ error: errorMessage });
+    message.error(errorMessage);
+  }
+}
+
 watch(
   () => ttsStore.audioUrl,
   async (audioUrl) => {
@@ -264,6 +301,17 @@ onUnmounted(() => {
         @click="saveAudio">
         <v-icon>mdi-content-save</v-icon>
       </v-btn>
+
+      <v-btn
+        icon
+        variant="text"
+        class="hikvision-save"
+        :aria-label="$t('hikvision.saveAudio')"
+        :loading="isHikvisionConverting()"
+        :disabled="!ttsStore.hikvisionBytes"
+        @click="saveHikvisionAudio">
+        <v-icon color="#E2231A">mdi-face-recognition</v-icon>
+      </v-btn>
     </div>
   </v-card>
 </template>
@@ -280,7 +328,7 @@ onUnmounted(() => {
 
 .audio-player__inner {
   display: grid;
-  grid-template-columns: auto auto auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto auto auto minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 12px;
   padding: 12px 16px;

@@ -20,6 +20,9 @@ pub fn run() {
             commands::file::write_binary_file,
             commands::file::remove_file,
             commands::audio::convert_audio_format,
+            commands::audio::convert_audio_to_hikvision,
+            commands::audio::convert_audio_bytes_to_hikvision,
+            commands::audio::is_ffmpeg_ready,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

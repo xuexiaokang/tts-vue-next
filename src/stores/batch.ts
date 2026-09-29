@@ -1,7 +1,8 @@
 import i18n from "../plugins/i18n";
 import { defineStore } from "pinia";
 import { invoke } from "@tauri-apps/api/core";
-import type { BatchFile, OutputFormat, TtsParams } from "../types";
+import type { BatchFile, HikvisionSampleRate, OutputFormat, TtsParams } from "../types";
+import { convertToHikvision } from "../utils/hikvisionConverter";
 import { useSettingsStore } from "./settings";
 import { useVoicesStore } from "./voices";
 
@@ -21,6 +22,9 @@ interface BatchExecutionSnapshot {
   maxRetries: number;
   fileConcurrency: number;
   selectedVoice: string;
+  hikvisionMode: boolean;
+  hikvisionSampleRate: HikvisionSampleRate;
+  hikvisionNormalize: boolean;
 }
 
 function toFileName(path: string): string {
@@ -135,6 +139,10 @@ export const useBatchStore = defineStore("batch", {
           status: "pending",
           progress: 0,
           error: undefined,
+          hikvisionStatus: "pending",
+          hikvisionOutputPath: undefined,
+          hikvisionSizeKB: undefined,
+          hikvisionError: undefined,
         });
       });
     },
@@ -160,11 +168,31 @@ export const useBatchStore = defineStore("batch", {
         maxRetries: settingsStore.maxRetries,
         fileConcurrency: settingsStore.fileConcurrency,
         selectedVoice: voicesStore.selectedVoice,
+        hikvisionMode: settingsStore.hikvisionMode,
+        hikvisionSampleRate: settingsStore.hikvisionSampleRate,
+        hikvisionNormalize: settingsStore.hikvisionNormalize,
       };
       const workerCount = Math.min(snapshot.fileConcurrency, fileIds.length);
       let nextIndex = 0;
 
       this.$patch({ converting: true });
+
+      if (snapshot.hikvisionMode) {
+        const queuedIds = new Set(fileIds);
+        this.$patch((state) => {
+          state.files = state.files.map((file) =>
+            queuedIds.has(file.id)
+              ? {
+                  ...file,
+                  hikvisionStatus: "pending" as const,
+                  hikvisionOutputPath: undefined,
+                  hikvisionSizeKB: undefined,
+                  hikvisionError: undefined,
+                }
+              : file,
+          );
+        });
+      }
 
       const processFile = async (fileId: string) => {
         const file = this.files.find((item) => item.id === fileId);
@@ -236,6 +264,10 @@ export const useBatchStore = defineStore("batch", {
               error: cleanupError ?? undefined,
             });
           });
+
+          if (snapshot.hikvisionMode) {
+            await this.convertFileToHikvision(file.id, outputPath, snapshot);
+          }
         } catch (error) {
           const cleanupError = await removeTempFile(tempPath);
           const errorMessage = cleanupError
@@ -263,6 +295,47 @@ export const useBatchStore = defineStore("batch", {
         await Promise.all(workers);
       } finally {
         this.$patch({ converting: false });
+      }
+    },
+
+    /**
+     * Converts one finished batch item to the Hikvision WAV format. The main
+     * batch result is left untouched: failures only mark the per-file
+     * hikvisionStatus as "failed".
+     */
+    async convertFileToHikvision(
+      fileId: string,
+      inputPath: string,
+      snapshot: BatchExecutionSnapshot,
+    ) {
+      const patchHikvision = (patch: Partial<BatchFile>) => {
+        this.$patch((state) => {
+          state.files = updateFile(state.files, fileId, patch);
+        });
+      };
+
+      patchHikvision({ hikvisionStatus: "converting" });
+
+      try {
+        const result = await convertToHikvision(
+          inputPath,
+          resolveOutputDirectory(inputPath, snapshot.savePath),
+          {
+            sampleRate: snapshot.hikvisionSampleRate,
+            normalize: snapshot.hikvisionNormalize,
+          },
+        );
+        patchHikvision({
+          hikvisionStatus: result.warning ? "oversize" : "success",
+          hikvisionOutputPath: result.outputPath,
+          hikvisionSizeKB: result.sizeKB,
+          hikvisionError: undefined,
+        });
+      } catch (error) {
+        patchHikvision({
+          hikvisionStatus: "failed",
+          hikvisionError: toErrorMessage(error),
+        });
       }
     },
   },

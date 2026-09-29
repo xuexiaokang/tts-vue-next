@@ -32,6 +32,10 @@ export interface BatchFile {
   progress: number;
   error?: string;
   outputPath?: string;
+  hikvisionStatus?: HikvisionStatus;
+  hikvisionOutputPath?: string;
+  hikvisionSizeKB?: number;
+  hikvisionError?: string;
 }
 
 export interface TtsSettings {
@@ -43,8 +47,18 @@ export interface TtsSettings {
   autoplay: boolean;
   language: AppLanguage;
   themeMode: ThemeMode;
+  hikvisionMode: boolean;
+  hikvisionSampleRate: HikvisionSampleRate;
+  hikvisionNormalize: boolean;
 }
 
 export type OutputFormat = "mp3" | "wav" | "ogg" | "flac";
 export type AppLanguage = "zh-CN" | "en-US";
 export type ThemeMode = "system" | "light" | "dark";
+export type HikvisionSampleRate = 8000 | 16000;
+export type HikvisionStatus =
+  | "pending"
+  | "converting"
+  | "success"
+  | "failed"
+  | "oversize";

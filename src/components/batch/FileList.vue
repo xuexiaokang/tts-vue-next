@@ -4,12 +4,15 @@ import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useI18n } from "vue-i18n";
 import { useMessage } from "vuetify-message-vue3";
+import type { BatchFile } from "../../types";
 import FileUpload from "./FileUpload.vue";
 import { useBatchStore } from "../../stores/batch";
+import { useSettingsStore } from "../../stores/settings";
 
 const SUPPORTED_EXTENSIONS = new Set(["txt", "md", "markdown", "docx"]);
 
 const batchStore = useBatchStore();
+const settingsStore = useSettingsStore();
 const message = useMessage();
 const { t } = useI18n();
 const fileListElement = ref<HTMLDivElement | null>(null);
@@ -158,6 +161,42 @@ function statusColor(status: string): string {
   }
 }
 
+function hikvisionCellVisible(file: BatchFile): boolean {
+  return Boolean(
+    settingsStore.hikvisionMode ||
+      (file.hikvisionStatus && file.hikvisionStatus !== "pending"),
+  );
+}
+
+function hikvisionStatusLabel(file: BatchFile): string {
+  switch (file.hikvisionStatus) {
+    case "converting":
+      return t("hikvision.status.converting");
+    case "success":
+      return t("hikvision.status.success");
+    case "failed":
+      return t("hikvision.status.failed");
+    case "oversize":
+      return t("hikvision.status.oversize");
+    default:
+      return t("hikvision.status.pending");
+  }
+}
+
+function hikvisionCellTitle(file: BatchFile): string {
+  if (file.hikvisionStatus === "failed") {
+    return file.hikvisionError ?? hikvisionStatusLabel(file);
+  }
+
+  if (file.hikvisionStatus === "oversize") {
+    return t("hikvision.messages.oversizeTooltip", {
+      sizeKB: file.hikvisionSizeKB ?? 0,
+    });
+  }
+
+  return hikvisionStatusLabel(file);
+}
+
 function statusLabel(status: string): string {
   switch (status) {
     case "done":
@@ -211,6 +250,7 @@ async function showInFolder(path: string) {
               <tr>
                 <th>{{ $t("batch.list.columns.file") }}</th>
                 <th>{{ $t("batch.list.columns.status") }}</th>
+                <th style="width: 88px">{{ $t("hikvision.listColumn") }}</th>
                 <th style="width: 220px">
                   {{ $t("batch.list.columns.progress") }}
                 </th>
@@ -236,6 +276,35 @@ async function showInFolder(path: string) {
                     variant="tonal">
                     {{ statusLabel(file.status) }}
                   </v-chip>
+                </td>
+                <td class="hikvision-cell">
+                  <span
+                    v-if="!hikvisionCellVisible(file)"
+                    class="text-medium-emphasis">—</span>
+                  <span
+                    v-else
+                    class="hikvision-cell__status"
+                    :title="hikvisionCellTitle(file)"
+                    :aria-label="hikvisionStatusLabel(file)">
+                    <v-icon
+                      v-if="file.hikvisionStatus === 'converting'"
+                      size="small"
+                      color="primary"
+                      class="hikvision-cell__spin">mdi-loading</v-icon>
+                    <v-icon
+                      v-else-if="file.hikvisionStatus === 'success'"
+                      size="small"
+                      color="success">mdi-check-circle</v-icon>
+                    <v-icon
+                      v-else-if="file.hikvisionStatus === 'failed'"
+                      size="small"
+                      color="error">mdi-close-circle</v-icon>
+                    <v-icon
+                      v-else-if="file.hikvisionStatus === 'oversize'"
+                      size="small"
+                      color="#F9A825">mdi-alert</v-icon>
+                    <span v-else class="hikvision-cell__dot" />
+                  </span>
                 </td>
                 <td>
                   <v-progress-linear
@@ -355,5 +424,32 @@ async function showInFolder(path: string) {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: rgba(var(--v-theme-on-surface), 0.6);
+}
+
+.hikvision-cell__status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hikvision-cell__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(var(--v-theme-on-surface), 0.32);
+  display: inline-block;
+}
+
+.hikvision-cell__spin {
+  animation: hikvision-spin 1s linear infinite;
+}
+
+@keyframes hikvision-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 </style>
