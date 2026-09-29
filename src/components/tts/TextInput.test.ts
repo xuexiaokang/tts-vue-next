@@ -4,11 +4,17 @@ import { describe, expect, test } from "vitest";
 import { mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { defineComponent } from "vue";
+import i18n from "../../plugins/i18n";
 import { useTtsStore } from "../../stores/tts";
 
 const passthroughStub = defineComponent({
   inheritAttrs: false,
   template: '<div v-bind="$attrs"><slot /></div>',
+});
+
+const iconStub = defineComponent({
+  inheritAttrs: false,
+  template: '<i v-bind="$attrs"><slot /></i>',
 });
 
 const textareaStub = defineComponent({
@@ -44,6 +50,7 @@ const transitionStub = defineComponent({
 async function mountTextInput(initialText = "", converting = false) {
   const pinia = createPinia();
   setActivePinia(pinia);
+  i18n.global.locale.value = "en";
 
   const store = useTtsStore();
   store.$patch({
@@ -54,10 +61,13 @@ async function mountTextInput(initialText = "", converting = false) {
   const { default: TextInput } = await import("./TextInput.vue");
   const wrapper = mount(TextInput, {
     global: {
-      plugins: [pinia],
+      plugins: [pinia, i18n],
       stubs: {
         VCard: passthroughStub,
+        VCardItem: passthroughStub,
         VCardText: passthroughStub,
+        VAvatar: passthroughStub,
+        VIcon: iconStub,
         VTextarea: textareaStub,
         VBtn: buttonStub,
         VFadeTransition: transitionStub,

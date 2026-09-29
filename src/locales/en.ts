@@ -28,6 +28,7 @@ export default {
     textInput: {
       title: "Text Input",
       placeholder: "Enter text to convert to speech...",
+      clearInput: "Clear text input",
     },
     options: {
       title: "Voice Control Dock",

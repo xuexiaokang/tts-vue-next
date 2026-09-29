@@ -40,6 +40,7 @@ const hasText = computed(() => ttsStore.text.length > 0);
           icon="mdi-delete-outline"
           size="small"
           class="text-panel__clear-btn"
+          :aria-label="$t('tts.textInput.clearInput')"
           :disabled="ttsStore.converting"
           @click="ttsStore.clear()" />
       </v-fade-transition>

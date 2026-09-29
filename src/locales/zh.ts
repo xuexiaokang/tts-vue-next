@@ -28,6 +28,7 @@ export default {
     textInput: {
       title: "文本输入",
       placeholder: "请输入要转换为语音的文本...",
+      clearInput: "清空输入内容",
     },
     options: {
       title: "语音控制面板",

@@ -6,6 +6,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { createPinia, setActivePinia } from "pinia";
 import { defineComponent } from "vue";
 import type { Voice } from "../../types";
+import i18n from "../../plugins/i18n";
 import { useTtsStore } from "../../stores/tts";
 
 const { invokeMock, messageErrorMock } = vi.hoisted(() => ({
@@ -88,6 +89,29 @@ const sliderStub = defineComponent({
   template: "<div><slot /></div>",
 });
 
+const viewStubs = {
+  VContainer: passthroughStub,
+  VRow: passthroughStub,
+  VCol: passthroughStub,
+  VCard: passthroughStub,
+  VCardItem: passthroughStub,
+  VAvatar: passthroughStub,
+  VIcon: passthroughStub,
+  VCardTitle: passthroughStub,
+  VCardSubtitle: passthroughStub,
+  VCardText: passthroughStub,
+  VTextarea: textareaStub,
+  VDivider: passthroughStub,
+  VCardActions: passthroughStub,
+  VChip: passthroughStub,
+  VSpacer: passthroughStub,
+  VBtn: buttonStub,
+  VSlider: sliderStub,
+  VSelect: selectStub,
+  VSwitch: passthroughStub,
+  VSheet: passthroughStub,
+};
+
 describe("TextToSpeech view", () => {
   beforeEach(() => {
     invokeMock.mockReset();
@@ -98,6 +122,7 @@ describe("TextToSpeech view", () => {
 
       return [];
     });
+    i18n.global.locale.value = "en";
   });
 
   test("mounts the real TTS sections together", async () => {
@@ -117,28 +142,8 @@ describe("TextToSpeech view", () => {
       await import("../../views/TextToSpeech.vue");
     const wrapper = mount(TextToSpeech, {
       global: {
-        plugins: [pinia],
-        stubs: {
-          VContainer: passthroughStub,
-          VRow: passthroughStub,
-          VCol: passthroughStub,
-          VCard: passthroughStub,
-          VCardItem: passthroughStub,
-          VAvatar: passthroughStub,
-          VIcon: passthroughStub,
-          VCardTitle: passthroughStub,
-          VCardSubtitle: passthroughStub,
-          VCardText: passthroughStub,
-          VTextarea: textareaStub,
-          VDivider: passthroughStub,
-          VCardActions: passthroughStub,
-          VChip: passthroughStub,
-          VSpacer: passthroughStub,
-          VBtn: buttonStub,
-          VSlider: sliderStub,
-          VSelect: selectStub,
-          VSheet: passthroughStub,
-        },
+        plugins: [pinia, i18n],
+        stubs: viewStubs,
       },
     });
 
@@ -149,16 +154,16 @@ describe("TextToSpeech view", () => {
       .map((button) => button.text())
       .filter(Boolean);
 
-    expect(wrapper.text()).toContain("Script Workspace");
+    expect(wrapper.text()).toContain("Text Input");
     expect(wrapper.text()).toContain("Voice Control Dock");
+    expect(wrapper.text()).toContain("Playback Console");
     expect(wrapper.find("textarea").exists()).toBe(true);
     expect(wrapper.find("audio").exists()).toBe(true);
-    expect(buttonLabels).toContain("Clear");
     expect(buttonLabels).toContain("Generate Speech");
     expect(invokeMock).toHaveBeenCalledWith("get_voices");
   });
 
-  test("renders Aero Glass workspace regions", async () => {
+  test("renders the layered glass workspace regions", async () => {
     const pinia = createPinia();
     setActivePinia(pinia);
 
@@ -166,44 +171,21 @@ describe("TextToSpeech view", () => {
       await import("../../views/TextToSpeech.vue");
     const wrapper = mount(TextToSpeech, {
       global: {
-        plugins: [pinia],
-        stubs: {
-          VContainer: passthroughStub,
-          VRow: passthroughStub,
-          VCol: passthroughStub,
-          VCard: passthroughStub,
-          VCardItem: passthroughStub,
-          VAvatar: passthroughStub,
-          VIcon: passthroughStub,
-          VCardTitle: passthroughStub,
-          VCardSubtitle: passthroughStub,
-          VCardText: passthroughStub,
-          VTextarea: textareaStub,
-          VDivider: passthroughStub,
-          VCardActions: passthroughStub,
-          VChip: passthroughStub,
-          VSpacer: passthroughStub,
-          VBtn: buttonStub,
-          VSlider: sliderStub,
-          VSelect: selectStub,
-          VSheet: passthroughStub,
-        },
+        plugins: [pinia, i18n],
+        stubs: viewStubs,
       },
     });
 
     await flushPromises();
 
     expect(wrapper.find(".tts-page").exists()).toBe(true);
-    expect(wrapper.find(".tts-page__hero").exists()).toBe(true);
     expect(wrapper.find(".tts-workspace").exists()).toBe(true);
     expect(wrapper.find(".tts-workspace__input").exists()).toBe(true);
     expect(wrapper.find(".tts-workspace__control").exists()).toBe(true);
     expect(wrapper.find(".tts-workspace__player").exists()).toBe(true);
     expect(wrapper.find(".options-panel.glass-panel").exists()).toBe(true);
-    expect(wrapper.text()).toContain("Aero Glass Studio");
-    expect(wrapper.text()).toContain(
-      "Create speech with layered voice controls",
-    );
+    expect(wrapper.find(".text-panel.glass-panel").exists()).toBe(true);
+    expect(wrapper.find(".audio-player.glass-panel").exists()).toBe(true);
     expect(rawTextToSpeechView).not.toContain("calc(100vh");
   });
 });
